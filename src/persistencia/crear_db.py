@@ -7,7 +7,8 @@ def crear_tablas():
             CREATE TABLE IF NOT EXISTS empleado (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             nombre TEXT NOT NULL,
-            correo TEXT NOT NULL
+            correo TEXT NOT NULL,
+            telefono TEXT NOT NULL
             )
             '''
     else:
@@ -15,7 +16,8 @@ def crear_tablas():
         CREATE TABLE IF NOT EXISTS empleado (
         id INT PRIMARY KEY AUTO_INCREMENT,
         nombre VARCHAR(100) NOT NULL,
-        correo VARCHAR(150) NOT NULL
+        correo VARCHAR(150) NOT NULL,
+        telefono INT NOT NULL
         )
             '''
     cursor.execute(sql)
