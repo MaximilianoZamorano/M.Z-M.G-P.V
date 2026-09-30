@@ -23,6 +23,7 @@ def crear_tablas():
     cursor.execute(sql)
     conexion.commit()
     conexion.close()
+    
 if __name__ == "__main__":
     crear_tablas()
     print("Base de datos preparada correctamente.")

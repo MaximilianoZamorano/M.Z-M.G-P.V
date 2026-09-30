@@ -7,21 +7,49 @@ from persistencia.crear_db import crear_tablas
 from dominio.empleado import Empleado
 from persistencia.empleado_dao import EmpleadoDAO
 
+def registrar_empleado():
+    nombre = input("Nombre: ").strip()
+    correo = input("Correo: ").strip()
+    telefono = input("telefono: ").strip()
+    empleado = Empleado(nombre, correo, telefono)
+    try:
+        EmpleadoDAO.insertar(empleado)
+        print("Empleado registrado correctamente.")
+    except Exception:
+        print("No fue posible registrar el empleado.")
 
-crear_tablas()
-empleado = Empleado(nombre="Ana Pérez", correo="ana@ecotech.cl", telefono=9133)
 
-print("Antes:", empleado.id)
-# None
+def mostrar_menu():
+    print("\n===== ECOTECH =====")
+    print("1. Registrar empleado")
+    print("2. Listar empleados")
+    print("3. Buscar empleado")
+    print("4. Actualizar empleado")
+    print("5. Eliminar empleado")
+    print("0. Salir")
 
-EmpleadoDAO.insertar(empleado)
-print("Después:", empleado.id)
-# id generado por la BD
+def listar_empleados():
+    
+    lista = EmpleadoDAO.listar()
+    for empleado in lista:
+        print(empleado.mostrar_datos())
 
-EmpleadoDAO.insertar(empleado)
-encontrado = EmpleadoDAO.buscar_por_id(empleado.id)
-print("Encontrado:", encontrado.mostrar_datos())
-print("Listado:")
-for item in EmpleadoDAO.listar():
-    print(item.mostrar_datos())
+
+def main():
+    while True:
+        mostrar_menu()
+        opcion = input("Seleccione una opción: ")
+        if opcion == "1":
+            registrar_empleado()
+        elif opcion == "2":
+            listar_empleados()
+        elif opcion == "0":
+            print("Hasta luego.")
+            break
+        else:
+            print("Opción no válida.")
+
+if __name__ == "__main__":
+    main()
+
 
