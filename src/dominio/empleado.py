@@ -1,4 +1,4 @@
-from dominio.registroTiempo import RegistroTiempo
+from dominio.registro_tiempo import RegistroTiempo
 from datetime import date
 
 class Empleado:
