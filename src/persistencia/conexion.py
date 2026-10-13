@@ -11,7 +11,16 @@ def abrir_conexion():
     motor = obtener_motor() 
     
     if motor == "sqlite":
-        return sqlite3.connect(os.getenv("DB_NAME", "ecotech.db"))
+        # Obtiene el nombre del archivo desde el .env o usa el default
+        nombre_db = os.getenv("DB_NAME", "ecotech.db")
+        
+        # Obtiene la ruta absoluta de la carpeta donde está ESTE archivo (conexion.py)
+        directorio_actual = os.path.dirname(os.path.abspath(__file__))
+        
+        # Une la ruta con el nombre de la base de datos
+        ruta_absoluta = os.path.join(directorio_actual, nombre_db)
+        
+        return sqlite3.connect(ruta_absoluta)
     
     if motor == "mysql":
         return pymysql.connect(

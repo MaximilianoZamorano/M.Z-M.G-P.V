@@ -7,12 +7,20 @@ class EmpleadoDAO:
     def insertar(empleado):
         conexion = abrir_conexion()
         cursor = conexion.cursor()
-        marcador = "?" if obtener_motor() == "sqlite" else "%s"
+        marca = marcador_sql()
         sql = f"""
-            INSERT INTO empleado (nombre, correo, telefono)
-            VALUES ({marcador}, {marcador}, {marcador})
+            INSERT INTO empleado (nombre, direccion, telefono, email, fechaInicioContrato, salario, departamento_id)
+            VALUES ({marca}, {marca}, {marca}, {marca}, {marca}, {marca}, {marca})
         """
-        cursor.execute(sql, (empleado.nombre, empleado.correo, empleado.telefono))
+        cursor.execute(sql, (
+            empleado.nombre, 
+            empleado.direccion, 
+            empleado.telefono, 
+            empleado.email, 
+            empleado.fechaInicioContrato, 
+            empleado.salario, 
+            empleado.departamento_id
+        ))
         empleado.id = cursor.lastrowid
         conexion.commit()
         conexion.close()
@@ -23,10 +31,7 @@ class EmpleadoDAO:
         conexion = abrir_conexion()
         cursor = conexion.cursor()
         marca = marcador_sql()
-        sql = (
-            "DELETE FROM empleado "
-            f"WHERE id = {marca}"
-        )
+        sql = f"DELETE FROM empleado WHERE id = {marca}"
         cursor.execute(sql, (id_empleado,))
         conexion.commit()
         eliminado = cursor.rowcount > 0
@@ -34,23 +39,23 @@ class EmpleadoDAO:
 
         return eliminado
 
-
     @staticmethod
-    def buscar_por_id(id_empleado):
+    def obtenerPorId(id_empleado):
         conexion = abrir_conexion()
         cursor = conexion.cursor()
         marca = marcador_sql()
         sql = f"""
-                    SELECT id, nombre, correo, telefono
-                    FROM empleado WHERE id = {marca}
+            SELECT id, nombre, direccion, telefono, email, fechaInicioContrato, salario, departamento_id
+            FROM empleado WHERE id = {marca}
         """
         cursor.execute(sql, (id_empleado,))
         fila = cursor.fetchone()
         conexion.close()
+        
         if fila is None:
             return None
         
-        return Empleado(id=fila[0], nombre=fila[1], correo=fila[2],telefono=fila[3])
+        return EmpleadoDAO._fila_a_empleado(fila)
 
     @staticmethod
     def actualizar(empleado):
@@ -59,18 +64,24 @@ class EmpleadoDAO:
             conexion = abrir_conexion()
             cursor = conexion.cursor()
             marca = marcador_sql()
-            sql = (
-                "UPDATE empleado "
-                f"SET nombre = {marca}, correo = {marca} "
-                f"WHERE id = {marca}"
-            )
+            sql = f"""
+                UPDATE empleado 
+                SET nombre = {marca}, direccion = {marca}, telefono = {marca}, 
+                    email = {marca}, fechaInicioContrato = {marca}, 
+                    salario = {marca}, departamento_id = {marca}
+                WHERE id = {marca}
+            """
             cursor.execute(
                 sql,
                 (
                     empleado.nombre,
-                    empleado.correo,
-                    empleado.id,
-                    empleado.teledono
+                    empleado.direccion,
+                    empleado.telefono,
+                    empleado.email,
+                    empleado.fechaInicioContrato,
+                    empleado.salario,
+                    empleado.departamento_id,
+                    empleado.id
                 )
             )
             conexion.commit()
@@ -84,36 +95,34 @@ class EmpleadoDAO:
             if conexion:
                 conexion.close()
 
-    
-
     @staticmethod
     def listar():
         conexion = abrir_conexion()
         cursor = conexion.cursor()
-        cursor.execute(
-        "SELECT id, nombre, correo, telefono FROM empleado"
-        )
+        cursor.execute("""
+            SELECT id, nombre, direccion, telefono, email, fechaInicioContrato, salario, departamento_id 
+            FROM empleado
+        """)
         filas = cursor.fetchall()
         conexion.close()
+        
         empleados = []
         for fila in filas:
-            empleados.append(
-                Empleado(
-                    id=fila[0],
-                    nombre=fila[1],
-                    correo=fila[2],
-                    telefono=fila[3]
-
-                )
-            )
+            empleados.append(EmpleadoDAO._fila_a_empleado(fila))
+            
         return empleados
 
     @staticmethod
     def _fila_a_empleado(fila):
+        # Transforma el registro devuelto por la BD en un objeto Empleado
         return Empleado(
             id=fila[0],
             nombre=fila[1],
-            correo=fila[2],
-            telefono=fila[3]
+            direccion=fila[2],
+            telefono=fila[3],
+            email=fila[4],
+            fechaInicioContrato=fila[5],
+            salario=fila[6],
+            departamento_id=fila[7]
         )
 
