@@ -1,109 +1,110 @@
-from persistencia.conexion import abrir_conexion, marcador_sql
-from dominio.proyecto import Proyecto 
+from dominio.proyecto import Proyecto
+from persistencia.conexion import conexion_segura, marcador_sql, normalizar_fecha
+
 
 class ProyectoDAO:
     @staticmethod
-    def insertar(proyecto):
-        conexion = abrir_conexion()
-        cursor = conexion.cursor()
+    def insertar(proyecto: Proyecto) -> Proyecto:
         marca = marcador_sql()
-        sql = f"""
-            INSERT INTO proyecto (nombre, descripcion, fecha_inicio)
-            VALUES ({marca}, {marca}, {marca})
-        """
-        cursor.execute(sql, (
-            proyecto.nombre, 
-            proyecto.descripcion, 
-            proyecto.fechaInicio
-        ))
-        proyecto.id = cursor.lastrowid
-        conexion.commit()
-        conexion.close()
-        return proyecto
-    
-    @staticmethod
-    def eliminar(id_proyecto):
-        conexion = abrir_conexion()
-        cursor = conexion.cursor()
-        marca = marcador_sql()
-        sql = f"DELETE FROM proyecto WHERE id = {marca}"
-        cursor.execute(sql, (id_proyecto,))
-        conexion.commit()
-        eliminado = cursor.rowcount > 0
-        conexion.close()
-
-        return eliminado
-
-    @staticmethod
-    def obtenerPorId(id_proyecto):
-        conexion = abrir_conexion()
-        cursor = conexion.cursor()
-        marca = marcador_sql()
-        sql = f"""
-            SELECT id, nombre, descripcion, fecha_inicio
-            FROM proyecto WHERE id = {marca}
-        """
-        cursor.execute(sql, (id_proyecto,))
-        fila = cursor.fetchone()
-        conexion.close()
-        
-        if fila is None:
-            return None
-        
-        return ProyectoDAO._fila_a_proyecto(fila)
-
-    @staticmethod
-    def actualizar(proyecto):
-        conexion = None
-        try:
-            conexion = abrir_conexion()
+        with conexion_segura() as conexion:
             cursor = conexion.cursor()
-            marca = marcador_sql()
-            sql = f"""
-                UPDATE proyecto 
-                SET nombre = {marca}, descripcion = {marca}, fecha_inicio = {marca}
-                WHERE id = {marca}
-            """
             cursor.execute(
-                sql,
+                f"""
+                INSERT INTO proyecto (nombre, descripcion, fecha_inicio)
+                VALUES ({marca}, {marca}, {marca})
+                """,
                 (
                     proyecto.nombre,
                     proyecto.descripcion,
-                    proyecto.fechaInicio,
-                    proyecto.id
-                )
+                    normalizar_fecha(proyecto.fechaInicio),
+                ),
             )
+            proyecto.id = cursor.lastrowid
             conexion.commit()
-            return cursor.rowcount > 0
-    
-        except Exception:
-            if conexion:
-                conexion.rollback()
-            raise   
-        finally:
-            if conexion:
-                conexion.close()
+        return proyecto
 
     @staticmethod
-    def listar():
-        conexion = abrir_conexion()
-        cursor = conexion.cursor()
-        cursor.execute("SELECT id, nombre, descripcion, fecha_inicio FROM proyecto")
-        filas = cursor.fetchall()
-        conexion.close()
-        
-        proyectos = []
-        for fila in filas:
-            proyectos.append(ProyectoDAO._fila_a_proyecto(fila))
-            
+    def eliminar(id_proyecto: int) -> bool:
+        marca = marcador_sql()
+        with conexion_segura() as conexion:
+            cursor = conexion.cursor()
+            cursor.execute(f"DELETE FROM proyecto WHERE id = {marca}", (id_proyecto,))
+            conexion.commit()
+            return cursor.rowcount > 0
+
+    @staticmethod
+    def obtenerPorId(id_proyecto: int):
+        marca = marcador_sql()
+        with conexion_segura() as conexion:
+            cursor = conexion.cursor()
+            cursor.execute(
+                f"""
+                SELECT id, nombre, descripcion, fecha_inicio
+                FROM proyecto
+                WHERE id = {marca}
+                """,
+                (id_proyecto,),
+            )
+            fila = cursor.fetchone()
+        if fila is None:
+            return None
+        proyecto = ProyectoDAO._fila_a_proyecto(fila)
+        ProyectoDAO._cargar_registros(proyecto)
+        return proyecto
+
+    @staticmethod
+    def actualizar(proyecto: Proyecto) -> bool:
+        marca = marcador_sql()
+        with conexion_segura() as conexion:
+            cursor = conexion.cursor()
+            cursor.execute(
+                f"SELECT 1 FROM proyecto WHERE id = {marca}",
+                (proyecto.id,),
+            )
+            if cursor.fetchone() is None:
+                return False
+            cursor.execute(
+                f"""
+                UPDATE proyecto
+                SET nombre = {marca}, descripcion = {marca}, fecha_inicio = {marca}
+                WHERE id = {marca}
+                """,
+                (
+                    proyecto.nombre,
+                    proyecto.descripcion,
+                    normalizar_fecha(proyecto.fechaInicio),
+                    proyecto.id,
+                ),
+            )
+            conexion.commit()
+            return True
+
+    @staticmethod
+    def listar() -> list[Proyecto]:
+        with conexion_segura() as conexion:
+            cursor = conexion.cursor()
+            cursor.execute(
+                "SELECT id, nombre, descripcion, fecha_inicio FROM proyecto ORDER BY id"
+            )
+            filas = cursor.fetchall()
+        proyectos = [ProyectoDAO._fila_a_proyecto(fila) for fila in filas]
+        for proyecto in proyectos:
+            ProyectoDAO._cargar_registros(proyecto)
         return proyectos
 
     @staticmethod
-    def _fila_a_proyecto(fila):
-        # Transforma el registro devuelto por la BD en un objeto Proyecto
+    def _cargar_registros(proyecto: Proyecto):
+        from persistencia.registro_tiempo_dao import RegistroTiempoDAO
+
+        for registro in RegistroTiempoDAO.listarPorProyecto(proyecto.id):
+            registro.proyecto = proyecto
+            proyecto.agregarRegistro(registro)
+
+    @staticmethod
+    def _fila_a_proyecto(fila) -> Proyecto:
         return Proyecto(
             id=fila[0],
             nombre=fila[1],
             descripcion=fila[2],
-            fechaInicio=fila[3]
+            fechaInicio=fila[3],
         )

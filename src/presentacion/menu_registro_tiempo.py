@@ -1,107 +1,137 @@
 from dominio.registro_tiempo import RegistroTiempo
-from persistencia.registro_tiempo_dao import RegistroTiempoDAO
 from persistencia.empleado_dao import EmpleadoDAO
 from persistencia.proyecto_dao import ProyectoDAO
+from persistencia.registro_tiempo_dao import RegistroTiempoDAO
+from presentacion.entrada import (
+    convertir_decimal,
+    leer_decimal,
+    leer_entero,
+    leer_entidad_existente,
+    leer_fecha,
+    leer_opcion,
+    leer_texto,
+    limpiar_consola,
+    pausar,
+)
+
 
 def registrar_tiempo():
     print("\n--- Registrar Tiempo Trabajado ---")
     try:
-        empleado_id = int(input("ID del Empleado: "))
-        if not EmpleadoDAO.obtenerPorId(empleado_id):
-            print("Error: No existe un empleado con ese ID.")
-            return
+        empleado = leer_entidad_existente(
+            "ID del empleado: ", EmpleadoDAO.obtenerPorId, "un empleado"
+        )
+        proyecto = leer_entidad_existente(
+            "ID del proyecto: ", ProyectoDAO.obtenerPorId, "un proyecto"
+        )
 
-        proyecto_id = int(input("ID del Proyecto: "))
-        if not ProyectoDAO.obtenerPorId(proyecto_id):
-            print("Error: No existe un proyecto con ese ID.")
-            return
+        fecha = leer_fecha("Fecha del registro (AAAA-MM-DD): ")
+        horas = leer_decimal("Horas trabajadas: ", minimo=0, estrictamente_mayor=True)
+        descripcion = leer_texto("Descripción de las tareas: ", maximo=1000)
 
-        fecha = input("Fecha del registro (YYYY-MM-DD): ").strip()
-        horas = float(input("Cantidad de horas trabajadas: "))
-        descripcion = input("Descripción de las tareas: ").strip()
+        registro = RegistroTiempo(
+            fecha=fecha,
+            horas=horas,
+            descripcion=descripcion,
+            empleado_id=empleado.id,
+            proyecto_id=proyecto.id,
+            empleado=empleado,
+            proyecto=proyecto,
+        )
+        registro = RegistroTiempoDAO.insertar(registro)
+        print(f"Registro guardado correctamente con ID: {registro.id}")
+    except Exception as error:
+        print(f"No fue posible guardar el registro: {error}")
 
-        registro = RegistroTiempo(fecha=fecha, horas=horas, descripcion=descripcion, 
-                                  empleado_id=empleado_id, proyecto_id=proyecto_id)
-        
-        reg_guardado = RegistroTiempoDAO.insertar(registro)
-        print(f"Registro guardado exitosamente con ID: {reg_guardado.id}")
-    except ValueError:
-        print("Error: Ingrese valores numéricos válidos para ID y horas.")
-    except Exception as e:
-        print(f"No fue posible guardar el registro: {e}")
 
 def listar_registros():
     print("\n--- Lista de Registros de Tiempo ---")
     try:
-        lista = RegistroTiempoDAO.listar()
-        if not lista:
+        registros = RegistroTiempoDAO.listar()
+        if not registros:
             print("No hay registros de tiempo.")
             return
-        
-        for reg in lista:
-            print(f"ID: {reg.id} | Fecha: {reg.fecha} | Horas: {reg.horas} | Emp: {reg.empleado_id} | Proy: {reg.proyecto_id}")
-    except Exception as e:
-        print(f"Error al listar registros: {e}")
+        for registro in registros:
+            print(
+                f"ID: {registro.id} | Fecha: {registro.fecha} "
+                f"| Horas: {registro.horas:g} "
+                f"| Empleado: {registro.empleado.nombre} "
+                f"| Proyecto: {registro.proyecto.nombre} "
+                f"| Descripción: {registro.descripcion}"
+            )
+    except Exception as error:
+        print(f"Error al listar registros: {error}")
+
 
 def buscar_registro():
     print("\n--- Buscar Registro de Tiempo ---")
     try:
-        id_reg = int(input("Ingrese el ID del registro a buscar: "))
-        reg = RegistroTiempoDAO.obtenerPorId(id_reg)
-        
-        if reg:
-            print(f"ID: {reg.id} | Fecha: {reg.fecha} | Horas: {reg.horas}")
-            print(f"Empleado ID: {reg.empleado_id} | Proyecto ID: {reg.proyecto_id}")
-            print(f"Descripción: {reg.descripcion}")
+        id_registro = leer_entero("Ingrese el ID del registro: ")
+        registro = RegistroTiempoDAO.obtenerPorId(id_registro)
+        if registro:
+            print(f"ID: {registro.id} | Fecha: {registro.fecha}")
+            print(f"Horas: {registro.horas:g}")
+            print(f"Empleado: {registro.empleado.nombre} (ID {registro.empleado_id})")
+            print(f"Proyecto: {registro.proyecto.nombre} (ID {registro.proyecto_id})")
+            print(f"Descripción: {registro.descripcion}")
         else:
-            print("No se encontró ningún registro con ese ID.")
-    except ValueError:
-        print("Error: El ID debe ser un número.")
-    except Exception as e:
-        print(f"Error al buscar: {e}")
+            print("No existe un registro con ese ID.")
+    except Exception as error:
+        print(f"Error al buscar el registro: {error}")
+
 
 def actualizar_registro():
     print("\n--- Actualizar Registro de Tiempo ---")
     try:
-        id_reg = int(input("Ingrese el ID del registro a actualizar: "))
-        reg = RegistroTiempoDAO.obtenerPorId(id_reg)
-        
-        if not reg:
-            print("No se encontró ningún registro con ese ID.")
+        id_registro = leer_entero("Ingrese el ID del registro: ")
+        registro = RegistroTiempoDAO.obtenerPorId(id_registro)
+        if not registro:
+            print("No existe un registro con ese ID.")
             return
 
-        print("Deje el campo en blanco y presione Enter si NO desea modificarlo.")
-        horas_input = input(f"Horas [{reg.horas}]: ").strip()
-        descripcion = input(f"Descripción [{reg.descripcion}]: ").strip()
+        horas_input = input(f"Horas [{registro.horas:g}] (Enter conserva): ").strip()
+        if horas_input:
+            while True:
+                try:
+                    horas = convertir_decimal(
+                        horas_input,
+                        minimo=0,
+                        estrictamente_mayor=True,
+                    )
+                    break
+                except ValueError as error:
+                    print(error)
+                    horas_input = input("Ingrese nuevamente las horas: ").strip()
+        else:
+            horas = registro.horas
+        descripcion = leer_texto(
+            f"Descripción [{registro.descripcion}] (Enter conserva): ",
+            obligatorio=False,
+            maximo=1000,
+        )
 
-        # Usamos el método modificarRegistro del dominio según el diagrama
         if horas_input or descripcion:
-            nuevas_horas = float(horas_input) if horas_input else reg.horas
-            nueva_desc = descripcion if descripcion else reg.descripcion
-            
-            reg.modificarRegistro(nuevas_horas, nueva_desc)
-
-            if RegistroTiempoDAO.actualizar(reg):
+            registro.modificarRegistro(horas, descripcion or registro.descripcion)
+            if RegistroTiempoDAO.actualizar(registro):
                 print("Registro actualizado correctamente.")
             else:
-                print("No se pudo actualizar.")
-    except ValueError:
-        print("Error: Las horas deben ser un valor numérico.")
-    except Exception as e:
-        print(f"Error al actualizar: {e}")
+                print("No se encontró el registro para actualizar.")
+        else:
+            print("No se realizaron cambios.")
+    except Exception as error:
+        print(f"Error al actualizar el registro: {error}")
 
 def eliminar_registro():
     print("\n--- Eliminar Registro de Tiempo ---")
     try:
-        id_reg = int(input("Ingrese el ID del registro a eliminar: "))
-        if RegistroTiempoDAO.eliminar(id_reg):
+        id_registro = leer_entero("Ingrese el ID del registro: ")
+        if RegistroTiempoDAO.eliminar(id_registro):
             print("Registro eliminado correctamente.")
         else:
-            print("No se encontró ningún registro con ese ID.")
-    except ValueError:
-        print("Error: El ID debe ser un número.")
-    except Exception as e:
-        print(f"Error al eliminar: {e}")
+            print("No existe un registro con ese ID.")
+    except Exception as error:
+        print(f"No fue posible eliminar el registro: {error}")
+
 
 def mostrar_menu_registro():
     print("\n===== GESTIÓN DE TIEMPO =====")
@@ -112,15 +142,20 @@ def mostrar_menu_registro():
     print("5. Eliminar registro")
     print("0. Volver al menú principal")
 
+
 def menu_registro_tiempo():
     while True:
+        limpiar_consola()
         mostrar_menu_registro()
-        opcion = input("Seleccione una opción: ").strip()
-        
-        if opcion == "1": registrar_tiempo()
-        elif opcion == "2": listar_registros()
-        elif opcion == "3": buscar_registro()
-        elif opcion == "4": actualizar_registro()
-        elif opcion == "5": eliminar_registro()
-        elif opcion == "0": break
-        else: print("Opción no válida. Intente nuevamente.")
+        opcion = leer_opcion("Seleccione una opción: ", {"0", "1", "2", "3", "4", "5"})
+        if opcion == "0":
+            return
+        acciones = {
+            "1": registrar_tiempo,
+            "2": listar_registros,
+            "3": buscar_registro,
+            "4": actualizar_registro,
+            "5": eliminar_registro,
+        }
+        acciones[opcion]()
+        pausar()

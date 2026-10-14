@@ -1,92 +1,110 @@
 from dominio.proyecto import Proyecto
 from persistencia.proyecto_dao import ProyectoDAO
+from presentacion.entrada import (
+    leer_entero,
+    leer_fecha,
+    leer_opcion,
+    leer_texto,
+    limpiar_consola,
+    pausar,
+)
+
 
 def registrar_proyecto():
     print("\n--- Registrar Nuevo Proyecto ---")
     try:
-        nombre = input("Nombre del proyecto: ").strip()
-        if not nombre:
-            print("El nombre no puede estar vacío.")
-            return
+        nombre = leer_texto("Nombre del proyecto: ", maximo=100)
+        descripcion = leer_texto("Descripción: ", maximo=1000)
+        fecha_inicio = leer_fecha("Fecha de inicio (AAAA-MM-DD): ")
+        proyecto = Proyecto(nombre, descripcion, fecha_inicio)
+        proyecto = ProyectoDAO.insertar(proyecto)
+        print(f"Proyecto registrado correctamente con el ID: {proyecto.id}")
+    except Exception as error:
+        print(f"No fue posible registrar el proyecto: {error}")
 
-        descripcion = input("Descripción: ").strip()
-        fecha_inicio = input("Fecha de inicio (YYYY-MM-DD): ").strip()
-        
-        proyecto = Proyecto(nombre=nombre, descripcion=descripcion, fechaInicio=fecha_inicio)
-        
-        proy_registrado = ProyectoDAO.insertar(proyecto)
-        print(f"Proyecto registrado correctamente con el ID: {proy_registrado.id}")
-    except Exception as e:
-        print(f"No fue posible registrar el proyecto: {e}")
 
 def listar_proyectos():
     print("\n--- Lista de Proyectos ---")
     try:
-        lista = ProyectoDAO.listar()
-        if not lista:
+        proyectos = ProyectoDAO.listar()
+        if not proyectos:
             print("No hay proyectos registrados.")
             return
-        
-        for proy in lista:
-            print(f"ID: {proy.id} | Nombre: {proy.nombre} | Fecha Inicio: {proy.fechaInicio}")
-    except Exception as e:
-        print(f"Error al listar proyectos: {e}")
+        for proyecto in proyectos:
+            print(
+                f"ID: {proyecto.id} | Nombre: {proyecto.nombre} "
+                f"| Inicio: {proyecto.fechaInicio} "
+                f"| Horas: {proyecto.calcularHorasTotales():g}"
+            )
+    except Exception as error:
+        print(f"Error al listar proyectos: {error}")
+
 
 def buscar_proyecto():
     print("\n--- Buscar Proyecto ---")
     try:
-        id_proy = int(input("Ingrese el ID del proyecto a buscar: "))
-        proy = ProyectoDAO.obtenerPorId(id_proy)
-        
-        if proy:
-            print(f"ID: {proy.id} | Nombre: {proy.nombre}")
-            print(f"Descripción: {proy.descripcion}")
-            print(f"Fecha Inicio: {proy.fechaInicio}")
+        id_proyecto = leer_entero("Ingrese el ID del proyecto: ")
+        proyecto = ProyectoDAO.obtenerPorId(id_proyecto)
+        if proyecto:
+            print(f"ID: {proyecto.id} | Nombre: {proyecto.nombre}")
+            print(f"Descripción: {proyecto.descripcion}")
+            print(f"Fecha de inicio: {proyecto.fechaInicio}")
+            print(f"Horas totales: {proyecto.calcularHorasTotales():g}")
         else:
-            print("No se encontró ningún proyecto con ese ID.")
-    except ValueError:
-        print("Error: El ID debe ser un número.")
-    except Exception as e:
-        print(f"Error al buscar el proyecto: {e}")
+            print("No existe un proyecto con ese ID.")
+    except Exception as error:
+        print(f"Error al buscar el proyecto: {error}")
+
 
 def actualizar_proyecto():
     print("\n--- Actualizar Proyecto ---")
     try:
-        id_proy = int(input("Ingrese el ID del proyecto a actualizar: "))
-        proy = ProyectoDAO.obtenerPorId(id_proy)
-        
-        if not proy:
-            print("No se encontró ningún proyecto con ese ID.")
+        id_proyecto = leer_entero("Ingrese el ID del proyecto: ")
+        proyecto = ProyectoDAO.obtenerPorId(id_proyecto)
+        if not proyecto:
+            print("No existe un proyecto con ese ID.")
             return
 
-        print("Deje el campo en blanco y presione Enter si NO desea modificarlo.")
-        nombre = input(f"Nuevo nombre [{proy.nombre}]: ").strip()
-        descripcion = input(f"Nueva descripción [{proy.descripcion}]: ").strip()
-        fecha_inicio = input(f"Nueva fecha inicio [{proy.fechaInicio}]: ").strip()
+        nombre = leer_texto(
+            f"Nuevo nombre [{proyecto.nombre}] (Enter conserva): ",
+            obligatorio=False,
+            maximo=100,
+        )
+        descripcion = leer_texto(
+            f"Nueva descripción [{proyecto.descripcion}] (Enter conserva): ",
+            obligatorio=False,
+            maximo=1000,
+        )
+        fecha_inicio = leer_fecha(
+            f"Nueva fecha [{proyecto.fechaInicio}] (Enter conserva): ",
+            obligatorio=False,
+        )
+        if nombre:
+            proyecto.nombre = nombre
+        if descripcion:
+            proyecto.descripcion = descripcion
+        if fecha_inicio is not None:
+            proyecto.fechaInicio = fecha_inicio
 
-        if nombre: proy.nombre = nombre
-        if descripcion: proy.descripcion = descripcion
-        if fecha_inicio: proy.fechaInicio = fecha_inicio
-
-        if ProyectoDAO.actualizar(proy):
+        if ProyectoDAO.actualizar(proyecto):
             print("Proyecto actualizado correctamente.")
         else:
-            print("No se pudo actualizar el proyecto.")
-    except Exception as e:
-        print(f"Error al actualizar el proyecto: {e}")
+            print("No se encontró el proyecto para actualizar.")
+    except Exception as error:
+        print(f"Error al actualizar el proyecto: {error}")
+
 
 def eliminar_proyecto():
     print("\n--- Eliminar Proyecto ---")
     try:
-        id_proy = int(input("Ingrese el ID del proyecto a eliminar: "))
-        if ProyectoDAO.eliminar(id_proy):
+        id_proyecto = leer_entero("Ingrese el ID del proyecto: ")
+        if ProyectoDAO.eliminar(id_proyecto):
             print("Proyecto eliminado correctamente.")
         else:
-            print("No se encontró ningún proyecto con ese ID.")
-    except ValueError:
-        print("Error: El ID debe ser un número.")
-    except Exception as e:
-        print(f"Error al eliminar el proyecto: {e}")
+            print("No existe un proyecto con ese ID.")
+    except Exception as error:
+        print(f"No fue posible eliminar el proyecto: {error}")
+
 
 def mostrar_menu_proyecto():
     print("\n===== GESTIÓN DE PROYECTOS =====")
@@ -97,15 +115,20 @@ def mostrar_menu_proyecto():
     print("5. Eliminar proyecto")
     print("0. Volver al menú principal")
 
+
 def menu_proyecto():
     while True:
+        limpiar_consola()
         mostrar_menu_proyecto()
-        opcion = input("Seleccione una opción: ").strip()
-        
-        if opcion == "1": registrar_proyecto()
-        elif opcion == "2": listar_proyectos()
-        elif opcion == "3": buscar_proyecto()
-        elif opcion == "4": actualizar_proyecto()
-        elif opcion == "5": eliminar_proyecto()
-        elif opcion == "0": break
-        else: print("Opción no válida. Intente nuevamente.")
+        opcion = leer_opcion("Seleccione una opción: ", {"0", "1", "2", "3", "4", "5"})
+        if opcion == "0":
+            return
+        acciones = {
+            "1": registrar_proyecto,
+            "2": listar_proyectos,
+            "3": buscar_proyecto,
+            "4": actualizar_proyecto,
+            "5": eliminar_proyecto,
+        }
+        acciones[opcion]()
+        pausar()
